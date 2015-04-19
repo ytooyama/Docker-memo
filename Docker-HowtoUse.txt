@@ -1,0 +1,124 @@
+■Dockerのインストール
+
+・CentOS
+https://docs.docker.com/installation/centos/
+・Oracle
+https://docs.docker.com/installation/oracle/
+・ほかのOS
+https://docs.docker.com/installation/
+
+■Dockerインストール後の設定
+
+・SELinuxをオフにする  #現在オフにしないでも良い方法を調査中です。
+# sed -i "s/SELINUX=enforcing/SELINUX=disabled/" /etc/selinux/config
+
+・firewalldをオフにする
+Dockerはfirewalldサービスを使用しないで独自のiptablesファイアウォールルールを追加するので問題無し。
+# systemctl disable firewalld.service
+# systemctl stop firewalld.service
+
+・いったん再起動
+# reboot
+
+------------------------------------------------------------------------------------------
+
+■ Dockerイメージの準備
+
+・イメージの検索
+host# docker search "os-name"
+
+※SystemdはDockerコンテナーで動かすには工夫が必要なので注意。
+http://qiita.com/yunano/items/9637ee21a71eba197345
+https://registry.hub.docker.com/_/centos/
+https://registry.hub.docker.com/u/timhughes/centos/
+
+従来のinitやUpstartのシステムはサービスが動くようです。
+Ubuntu 14.04やDebian7、CentOS6、Oracle Linux 6などは確認済み。
+
+・イメージのインポート
+host# docker pull debian
+
+・イメージの確認
+host# docker images
+REPOSITORY           TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+debian               7                   1265e16d0c28        2 weeks ago         85.09 MB
+debian               7.8                 1265e16d0c28        2 weeks ago         85.09 MB
+debian               latest              1265e16d0c28        2 weeks ago         85.09 MB
+debian               wheezy              1265e16d0c28        2 weeks ago         85.09 MB
+ubuntu               14.04               d0955f21bf24        3 weeks ago         192.7 MB
+ubuntu               14.04.2             d0955f21bf24        3 weeks ago         192.7 MB
+ubuntu               latest              d0955f21bf24        3 weeks ago         192.7 MB
+ubuntu               trusty              d0955f21bf24        3 weeks ago         192.7 MB
+ubuntu               trusty-20150320     d0955f21bf24        3 weeks ago         192.7 MB
+oracle/oraclelinux   6                   8dee47b714f6        5 weeks ago         161.8 MB
+centos               6                   f6808a3e4d9e        6 weeks ago         202.6 MB
+
+■コンテナの作成
+
+・基本
+host# docker run --name=httpd-bundle -it debian:wheezy /bin/bash
+
+・--net="host"をつけると、ホストのIPアドレスでDockerコンテナー内のサービスにアクセスできる(ポート被り注意)
+host# docker run --net="host" --name=httpd-bundle -it debian:wheezy /bin/bash
+
+・-dオプションをつけるとデーモンとして起動する
+host# docker run -d --net="host" --name=httpd-bundle -it debian:wheezy /bin/bash
+
+・volume割り当てする場合（Dockerホストの/opt/volumeをコンテナの/opt/volumeにマウント）
+host# docker run --name=httpd-bundle -v /opt/volume:/opt/volume -it debian:wheezy /bin/bash
+
+その他の操作は
+docker run --helpでコマンドを確認！
+
+・ログインする時はdocker execを使う
+# docker ps -a  #CONTAINER IDを確認
+# docker exec -it ebb3a9d62cce /bin/bash
+root@dockerhost:/# cat /etc/debian_version
+7.8
+
+■コンテナで任意の設定
+コンテナ上で環境を構築する。
+構築後、コンテナーから抜けるには、exitコマンドを実行する。
+container# exit
+
+docker run で-dオプションをつけなかった場合はコンテナは停止する。
+-dをつけた場合は継続して動作する。シャットダウンするには「docker stop "CONTAINER ID"」を実行する。
+
+CONTAINER IDを確認するには、次のように実行する。
+host# docker ps -a
+
+CONTAINER ID        IMAGE                                       COMMAND             CREATED             STATUS                     PORTS               NAMES
+e435b36047aa        debian:wheezy   "/bin/bash"         42 minutes ago      Exited (0) 8 seconds ago                       httpd-bundle   
+
+■コンテナをイメージ化
+コンテナはイメージ（テンプレート）化できる。イメージ化したテンプレートから、新しいコンテナーを起動したりできる。
+
+host# docker commit httpd-bundle httpd-template
+
+登録したイメージを確認してみよう。
+
+host# docker images
+REPOSITORY           TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+httpd-template       latest              e45ad3aaa4c2        18 seconds ago      432 MB
+debian               wheezy              1265e16d0c28        2 weeks ago         85.09 MB
+ubuntu               trusty              d0955f21bf24        3 weeks ago         192.7 MB
+oracle/oraclelinux   6                   8dee47b714f6        5 weeks ago         161.8 MB
+centos               6                   f6808a3e4d9e        6 weeks ago         202.6 MB
+
+httpdインストール済みイメージからdocker run
+
+・ポート転送を用いる場合
+host# docker run -d -p 8080:80 --name=webcontainer01 -it httpd-template /bin/bash
+
+・Dockerホストとポート共用する場合
+host# docker run -d  --net="host" --name=webcontainer01 -it httpd-template /bin/bash
+
+■ブラウザでサイトにアクセス
+
+・ポート転送を用いた場合
+client# w3m http://192.168.1.100:8080
+※接続先サーバーはDockerホストを指定する。
+
+・Dockerホストとポート共用した(--net="host"モード)場合
+client# w3m http://192.168.1.100
+※接続先サーバーはDockerホストを指定する。

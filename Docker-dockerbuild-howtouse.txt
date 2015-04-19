@@ -1,0 +1,58 @@
+・Dockerのインストール
+https://docs.docker.com/installation/
+・Dockerfile Reference
+https://docs.docker.com/reference/builder/
+・DockerFileの応用例（中程にある）
+https://registry.hub.docker.com/_/centos/
+
+■DockerFileの作成
+ファイル名をDockerfileとすると利用するときに省略できる。
+
+FROMでベースのOSを指定(事前にdocker pullでベースイメージをダウンロードしておく)。
+MAINTAINERでメンテナのユーザー名、
+RUNで実行するコマンドを指定。
+
+[root@docker-yt ~]# vi Dockerfile-apache
+FROM centos:6
+MAINTAINER ytooyama
+RUN yum install -y httpd
+CMD /bin/bash
+
+【注意点】
+Debian系はパッケージインストール前にapt-get updateを忘れずに
+
+FROM debian:7
+MAINTAINER ytooyama
+RUN apt-get update
+RUN apt-get install -y apache2
+CMD /bin/bash
+
+■Dockerイメージの作成
+最後のドットを忘れずに。
+
+[root@docker-yt ~]# docker build -t apache:latest -f Dockerfile-apache .
+リポジトリーapache、タグlatestで登録される。
+
+[root@docker-yt ~]# docker images
+REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+apache              latest              e07ba0f71985        7 seconds ago       268.1 MB
+centos              7                   0114405f9ff1        33 hours ago        215.7 MB
+debian              7                   1265e16d0c28        2 weeks ago         84.96 MB
+debian              6                   ca2bfa007df4        2 weeks ago         76.57 MB
+centos              6                   f6808a3e4d9e        6 weeks ago         202.6 MB
+
+■イメージを使ってコンテナの作成
+
+・コンテナ作成
+[root@docker-yt ~]# docker run -d --name=httpd-bundle -it apache:latest /bin/bash
+
+--net="host"をつけると、ホストのIPアドレスでDockerコンテナー内のサービスにアクセスできる(ポート被り注意)。
+# docker run --net="host" -d --name=httpd-bundle -it apache:latest /bin/bash
+
+・コンテナIDの確認
+[root@docker-yt ~]# docker ps -a
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS                      NAMES
+d4b0e748fb7f        apache:latest       "/bin/bash"         17 seconds ago      Up 16 seconds                                  httpd-bundle
+
+■コンテナーにログイン
+[root@docker-yt ~]# docker exec -it d4b0e748fb7f /bin/bash

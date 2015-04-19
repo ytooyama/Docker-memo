@@ -1,0 +1,64 @@
+■EL7でDockerコンテナーに外部からアクセスできるようにする(LXC編)
+参考:
+http://enakai00.hatenablog.com/entry/20141205/1417759333
+http://www.agilegroup.co.jp/technote/docker-network-in-bridge.html#jump2
+http://qiita.com/yunano/items/456361aefb7a9935875f
+http://xboxng.com/wp/?p=66
+
+・Dockerのインストール
+# yum install docker
+
+・lxcのインストール
+# yum install lxc
+
+・eth0の修正
+# vi /etc/sysconfig/network-scripts/ifcfg-eth0
+DEVICE=eth0
+BOOTPROTO=none
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+HWADDR=xx:xx:xx:xx:xx:xx
+BRIDGE=br0
+
+・ブリッジNIC(br0)の作成
+# vi /etc/sysconfig/network-scripts/ifcfg-br0
+DEVICE=br0
+TYPE=Bridge
+BOOTPROTO=none
+IPADDR=192.168.1.210
+NETMASK=255.255.255.0
+DELAY=0
+DNS1=192.168.1.6
+GATEWAY=192.168.1.1
+ONBOOT=yes
+
+・firewalldからiptablesへの切り替え
+# yum -y install iptables-services
+# systemctl stop firewalld.service
+# systemctl mask firewalld.service
+# systemctl enable iptables.service
+# systemctl start iptables.service
+
+/*・SELinuxは無効化しないでも平気みたい
+# sed -i "s/SELINUX=enforcing/SELINUX=disabled/" /etc/selinux/config
+*/
+
+・Dockerコンテナーで作成したブリッジインターフェースを利用する
+# vi /etc/sysconfig/docker
+OPTIONS=--selinux-enabled -e lxc -b none
+
+・Dockerホストの再起動
+# reboot
+
+・カレントネットワークとコンテナがbr0で接続される
+# docker run -d --net=none --lxc-conf="lxc.network.type=veth" --lxc-conf="lxc.network.ipv4=192.168.1.101/24" --lxc-conf="lxc.network.ipv4.gateway=192.168.1.1" --lxc-conf="lxc.network.link=br0" --lxc-conf="lxc.network.name=eth0" --lxc-conf="lxc.network.flags=up" -it --name test1 tutum/centos:latest /bin/bash
+
+・接続
+# docker attach CONTAINER ID
+※CONTAINER IDはdocker ps -aコマンドなどで確認
+※Enter連打でコンテナーに接続できる
+
+・コンテナに接続出来た
+[root@9128e733a08b /]# ip a s eth0|grep inet|grep eth0
+    inet 192.168.1.101/24 scope global eth0
