@@ -1,9 +1,12 @@
 ■EL7でDockerコンテナーに外部からアクセスできるようにする(LXC編)
 参考:
+https://docs.docker.com/articles/networking/#bridge-building
+
 http://enakai00.hatenablog.com/entry/20141205/1417759333
 http://www.agilegroup.co.jp/technote/docker-network-in-bridge.html#jump2
 http://qiita.com/yunano/items/456361aefb7a9935875f
 http://xboxng.com/wp/?p=66
+
 
 ・Dockerのインストール
 # yum install docker
